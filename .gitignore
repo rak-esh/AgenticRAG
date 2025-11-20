@@ -1,0 +1,61 @@
+--- Security (CRITICAL) ---
+
+Never push API keys to Git
+
+.env
+.env.local
+config.env
+
+--- Virtual Environments ---
+
+Ignore the environment folder itself
+
+.venv/
+venv/
+env/
+ENV/
+
+--- Python Artifacts ---
+
+Bytecode files
+
+pycache/
+*.pyc
+*.pyo
+*.pyd
+
+--- Application Data (Local Only) ---
+
+User uploaded files
+
+uploaded_pdfs/
+folder/
+
+Vector Database (ChromaDB persistence)
+
+chroma_db/
+
+Model Cache (Large files downloaded by HuggingFace)
+
+model_cache/
+models/
+LLM_model/
+
+--- IDE & OS Settings ---
+
+VS Code
+
+.vscode/
+
+PyCharm
+
+.idea/
+
+Mac/Windows junk
+
+.DS_Store
+Thumbs.db
+
+--- Logs & Errors ---
+
+*.log
