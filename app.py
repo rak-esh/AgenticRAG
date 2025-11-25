@@ -1,11 +1,12 @@
 import streamlit as st
 import os
-import time
+import time  # Ensure time is imported
 import config
 from agent_graph import app_graph
 from vector_engine import VectorEngine
 
 # Initialize Engine
+# Note: In Streamlit, it's often better to cache this resource.
 engine = VectorEngine()
 
 st.set_page_config(page_title="Gemini PDF Assistant", page_icon="🤖", layout="wide")
@@ -48,6 +49,7 @@ def main():
         
         st.markdown("---")
         st.markdown("### 📂 Available Files")
+        
         files = engine.get_existing_files()
         if files:
             for f in files:
@@ -97,7 +99,7 @@ def main():
         st.header("💬 Ask Questions")
         
         # File Filter
-        file_options = ["All PDFs"] + engine.get_existing_files()
+        file_options = ["All PDFs"] + (files if files else [])
         selected_file = st.selectbox("Search Context:", file_options)
         
         # Initialize Chat History
@@ -110,6 +112,8 @@ def main():
                 st.markdown(msg["content"])
                 if "sources" in msg and msg["sources"]:
                     st.caption(f"Sources: {', '.join(msg['sources'])}")
+                if "time_taken" in msg:
+                    st.caption(f"⏱️ Time taken: {msg['time_taken']:.2f} seconds")
 
         # User Input
         if prompt := st.chat_input("Ask a question about your documents..."):
@@ -120,7 +124,10 @@ def main():
 
             # Generate Response
             with st.chat_message("assistant"):
-                with st.spinner("Thinking..."):
+                with st.spinner("Thinking (Searching & Reranking)..."):
+                    # --- Start Timer ---
+                    start_time = time.time()
+                    
                     # Invoke LangGraph
                     inputs = {
                         "question": prompt,
@@ -133,25 +140,33 @@ def main():
                     }
                     
                     result = app_graph.invoke(inputs)
+                    
+                    # --- End Timer ---
+                    end_time = time.time()
+                    time_taken = end_time - start_time
+                    
                     response = result["answer"]
                     sources = result.get("source_docs", [])
 
                     st.markdown(response)
+                    
+                    # Display Time and Sources
                     if sources:
                         st.caption(f"📚 Sources: {', '.join(sources)}")
+                    st.caption(f"⏱️ Time taken: {time_taken:.2f} seconds")
                     
-                    # Add assistant message
+                    # Add assistant message to history with time
                     st.session_state.messages.append({
                         "role": "assistant", 
                         "content": response,
-                        "sources": sources
+                        "sources": sources,
+                        "time_taken": time_taken
                     })
 
     # --- Mode: Summarization ---
     elif mode == "Document Summarization":
         st.header("📝 Document Summarization")
         
-        files = engine.get_existing_files()
         if not files:
             st.warning("Please upload files first.")
         else:
@@ -166,6 +181,9 @@ def main():
 
             if st.button("Generate Summary", type="primary"):
                 with st.spinner("Reading and Summarizing... (This might take a moment)"):
+                    # --- Start Timer ---
+                    start_time = time.time()
+                    
                     inputs = {
                         "question": "", # Not needed for summary
                         "file_filter": target_file,
@@ -177,10 +195,18 @@ def main():
                     }
                     
                     result = app_graph.invoke(inputs)
+                    
+                    # --- End Timer ---
+                    end_time = time.time()
+                    time_taken = end_time - start_time
+                    
                     summary = result["answer"]
                     
                     st.markdown("### Summary Result")
                     st.info(summary)
+                    
+                    # Show time taken
+                    st.success(f"⏱️ Summary generated in {time_taken:.2f} seconds")
                     
                     st.download_button(
                         "Download Summary",

@@ -11,30 +11,49 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PDF_FOLDER = os.path.join(BASE_DIR, "uploaded_pdfs")
 CHROMA_PATH = os.path.join(BASE_DIR, "chroma_db")
-MODEL_CACHE_DIR = os.path.join(BASE_DIR, "model_cache")
-
-# --- CRITICAL FIX: Set Cache Globally via Env Var ---
-# This must be set before importing transformers/sentence_transformers
-os.environ["HF_HOME"] = MODEL_CACHE_DIR
-os.environ["SENTENCE_TRANSFORMERS_HOME"] = MODEL_CACHE_DIR
 
 # Create directories
 os.makedirs(PDF_FOLDER, exist_ok=True)
 os.makedirs(CHROMA_PATH, exist_ok=True)
-os.makedirs(MODEL_CACHE_DIR, exist_ok=True)
 
-# Model Configurations
-EMBEDDING_MODEL_NAME = "all-mpnet-base-v2"
-RERANKER_MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+# --- Model Configurations (Online) ---
+# Using Google's latest text embedding model
+EMBEDDING_MODEL_NAME = "models/text-embedding-004"
 LLM_MODEL_NAME = "gemini-2.5-flash" 
 
+# --- Retrieval Configs ---
+# How many "rough" matches to fetch before reranking
+INITIAL_RETRIEVAL_K = 15
+
 # Chunking Configs
+# Increased chunk size slightly as Gemini handles larger contexts well
 CHUNK_CONFIGS = {
-    "qa": {"size": 500, "overlap": 50},
-    "summary": {"size": 4000, "overlap": 200}
+    "qa": {"size": 1000, "overlap": 100},
+    "summary": {"size": 8000, "overlap": 400}
 }
 
-# Prompts
+# --- Prompts ---
+
+# 1. Reranking Prompt (The Judge)
+RERANK_PROMPT = """You are a highly intelligent relevance ranker.
+Your task is to evaluate the following list of documents based on their relevance to the user's query.
+
+Query: {query}
+
+Documents:
+{docs}
+
+Instructions:
+1. Analyze the semantic meaning of the query.
+2. Rank the provided documents from MOST relevant to LEAST relevant.
+3. Return the ID numbers of the top {k} documents in order, separated by commas.
+4. Do not output anything else (no explanations, no intro).
+5. If a document is completely irrelevant, do not include it.
+
+Example Output: 2, 5, 1, 3
+"""
+
+# 2. Summarization Prompts
 SUMMARY_TEMPLATES = {
     "detailed": """You are a detailed summarization expert. Create a comprehensive summary of the following text.
     Capture main ideas, key supporting points, and logical flow.
@@ -63,6 +82,7 @@ SUMMARY_TEMPLATES = {
     Executive Summary:"""
 }
 
+# 3. Query Expansion Prompt
 QUERY_REWRITE_TEMPLATE = """You are an AI assistant specialized in information retrieval. 
 Your task is to generate 3 different versions of the given user question to retrieve relevant documents from a vector database. 
 By generating multiple perspectives, your goal is to help the user overcome limitations of distance-based similarity search.
@@ -71,6 +91,7 @@ Provide these alternative questions separated by newlines. Do not number them. D
 
 Original question: {question}"""
 
+# 4. QA Generation Prompt
 QA_SYSTEM_PROMPT = """You are a precise and helpful PDF assistant. Use the provided context to answer the user's question.
 If the answer is not in the context, politely state that you cannot find the information in the provided documents.
 Do not hallucinate information.

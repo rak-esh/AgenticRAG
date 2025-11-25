@@ -6,18 +6,15 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, END
 import config
 
-# Import VectorEngine with Error Handling
+# Import VectorEngine
 try:
     from vector_engine import VectorEngine
-    print("Initializing Vector Engine in Graph...")
     vector_engine = VectorEngine()
 except Exception as e:
     print(f"🔥 CRITICAL ERROR: Could not initialize VectorEngine: {e}")
-    # We allow the script to continue so the import doesn't fail entirely, 
-    # but the graph will fail if run.
     vector_engine = None
 
-# Setup Gemini
+# Setup Gemini for Main QA
 llm = ChatGoogleGenerativeAI(
     model=config.LLM_MODEL_NAME,
     google_api_key=config.GOOGLE_API_KEY,
@@ -64,6 +61,7 @@ def retrieve_node(state: AgentState):
     generated_queries = state.get("generated_queries", [])
     file_filter = state.get("file_filter")
     
+    # Call the engine (which now does LLM Reranking internally)
     results = vector_engine.retrieve_refined(
         original_query=question,
         generated_queries=generated_queries,
