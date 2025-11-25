@@ -9,7 +9,7 @@ from vector_engine import VectorEngine
 # Note: In Streamlit, it's often better to cache this resource.
 engine = VectorEngine()
 
-st.set_page_config(page_title="Gemini PDF Assistant", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="PDF Assistant", page_icon="🤖", layout="wide")
 
 # CSS for production look
 st.markdown("""
