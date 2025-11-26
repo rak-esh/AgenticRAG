@@ -91,3 +91,18 @@ Do not hallucinate information.
 
 Context:
 {context}"""
+
+REFINE_THRESHOLD_CHARS = 100000 
+
+REFINE_TEMPLATE = """
+You are refining an existing summary of a document.
+We have an existing summary up to a certain point:
+{existing_summary}
+
+Below is the new context to add:
+{new_context}
+
+Given the new context, refine the original summary.
+If the new context isn't useful, return the original summary.
+Refined Summary:
+"""

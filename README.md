@@ -19,10 +19,20 @@ This project goes beyond simple vector search by implementing a sophisticated pi
   - **Query Expansion**: Generates 3 variations of the user's question to find better matches.
   - **Reranking**: Uses Gemini to score and re-order search results before answering.
 - **Summarization Engine**: Dedicated mode for generating Detailed, Concise, Bullet-point, or Executive summaries.
-- **Singleton Engine**: Optimized resource management using Streamlit caching.
 - **Persistent Storage**: Uses ChromaDB to save vector embeddings locally.
-
 ---
+
+## 🏗️ Architecture
+
+The system is split into two distinct execution branches:
+### 1. The QA Branch (Precision)
+`Transform Query` → `Vector Search (Recall)` → `Rerank (Precision)` → `Generate Answer`
+
+### 2. The Summary Branch (Context)
+`Router` → `Check Token Length` → **Decision**:
+  - **Path A (Small Docs):** `Stuff Node` (Single Prompts)
+  - **Path B (Large Docs):** `Refine Node` (Iterative Loop)
+
 
 ## 📂 Project Structure
 
