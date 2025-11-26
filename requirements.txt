@@ -5,8 +5,6 @@ langchain-google-genai
 langchain-community
 langchain-text-splitters
 chromadb
-pypdf2
 python-dotenv
 llama-parse
 nest_asyncio
-pandas
