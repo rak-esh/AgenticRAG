@@ -26,8 +26,7 @@ INITIAL_RETRIEVAL_K = 15
 
 # Chunking Configs
 CHUNK_CONFIGS = {
-    "qa": {"size": 1000, "overlap": 100},
-    "summary": {"size": 8000, "overlap": 400}
+    "qa": {"size": 1000, "overlap": 100}
 }
 
 # --- Prompts ---

@@ -70,7 +70,15 @@ class VectorEngine:
             return False
 
         self._chunk_and_store(text, filename, config.CHUNK_CONFIGS["qa"], "qa_chunks")
-        self._chunk_and_store(text, filename, config.CHUNK_CONFIGS["summary"], "summary_chunks")
+        # self._chunk_and_store(text, filename, config.CHUNK_CONFIGS["summary"], "summary_chunks")
+
+        md_path = os.path.join(config.PDF_FOLDER, f"{filename}.md")
+        
+        with open(md_path, "w", encoding="utf-8") as f:
+            f.write(text)
+        
+        logger.info(f"Saved full markdown for summarization to {md_path}")
+
         
         return True
 
@@ -189,12 +197,24 @@ class VectorEngine:
         except Exception:
             return docs[:k]
 
+    # def get_all_summary_chunks(self, filename: str) -> str:
+    #     collection = self._get_collection("summary_chunks")
+    #     results = collection.get(where={"source": filename})
+    #     if results and results['documents']:
+    #         return "\n\n".join(results['documents'])
+    #     return ""
+
     def get_all_summary_chunks(self, filename: str) -> str:
-        collection = self._get_collection("summary_chunks")
-        results = collection.get(where={"source": filename})
-        if results and results['documents']:
-            return "\n\n".join(results['documents'])
-        return ""
+            # Update retrieval to look for .md files
+            md_path = os.path.join(config.PDF_FOLDER, f"{filename}.md")
+            
+            if os.path.exists(md_path):
+                with open(md_path, "r", encoding="utf-8") as f:
+                    return f.read()
+            else:
+                logger.warning(f"Summary text file not found for {filename}")
+                return ""
+
 
     def get_existing_files(self) -> List[str]:
         return [f for f in os.listdir(config.PDF_FOLDER) if f.endswith('.pdf')]
