@@ -30,8 +30,8 @@ The system is split into two distinct execution branches:
 
 ### 2. The Summary Branch (Context)
 `Router` → `Check Token Length` → **Decision**:
-  - **Path A (Small Docs):** `Stuff Node` (Single Prompts)
-  - **Path B (Large Docs):** `Refine Node` (Iterative Loop)
+  - **Path A (Small Docs):** `Stuff Node` - Concatenates the entire document content into a single prompt to generate a complete summary in one shot.
+  - **Path B (Large Docs):** `Refine Node` - Generates an initial summary from the first chunk and sequentially updates it with subsequent chunks to create a comprehensive rolling summary.
 
 
 ## 📂 Project Structure
