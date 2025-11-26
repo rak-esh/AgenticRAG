@@ -1,12 +1,62 @@
-#This system implements a sophisticated pipeline designed to minimize hallucinations and maximize retrieval accuracy.
-1. Data Ingestion (Dual-Chunking)
-	• QA Chunks (Small): ~500 characters. Optimized for precise fact retrieval.
-	• Summary Chunks (Large): ~4000 characters. Optimized for capturing global context.
-	• Vector Store: ChromaDB (Persistent storage).
-2. The Intelligence Loop (LangGraph)
-When a user asks a question, the State Graph executes the following workflow:
-	1. Router: Determines if the intent is Question Answering or Summarization.
-	2. Query Translation: Uses LLM to generate 3 variations of the user's query (improves recall).
-	3. Broad Retrieval: Fetches top ~15 documents across all query variations.
-	4. Reranking (Cross-Encoder): Uses ms-marco-MiniLM-L-6-v2 to score the relevancy of retrieved chunks against the original question.
-	5. Generation: Sends only the top 5 verified chunks to Gemini 2.5 Flash for the final answer.
+# PDF Assistant RAG with LangGraph & Gemini
+
+An advanced Retrieval-Augmented Generation (RAG) system built using **Streamlit**, **LangGraph**, and **Google Gemini** for high-accuracy document Q&A and summarization.
+
+This project goes beyond simple vector search by implementing a sophisticated pipeline including:
+- **LlamaParse** for high-fidelity PDF parsing (OCR & Tables)
+- **Query Expansion** to generate search variations
+- **Re-ranking** results for higher relevance
+- **LangGraph** state machine for workflow orchestration
+- **Streamlit** UI for easy file management and chatting
+
+---
+
+## 🚀 Features
+
+- **Advanced PDF Parsing**: Uses `LlamaParse` to accurately extract tables and text, even from scanned documents.
+- **Agentic Workflow**: Built on `LangGraph` to manage the flow between Query Transformation, Retrieval, and Generation.
+- **Smart Retrieval**: 
+  - **Query Expansion**: Generates 3 variations of the user's question to find better matches.
+  - **Reranking**: Uses Gemini to score and re-order search results before answering.
+- **Summarization Engine**: Dedicated mode for generating Detailed, Concise, Bullet-point, or Executive summaries.
+- **Singleton Engine**: Optimized resource management using Streamlit caching.
+- **Persistent Storage**: Uses ChromaDB to save vector embeddings locally.
+
+---
+
+## 📂 Project Structure
+
+- `app.py`: The Streamlit frontend interface.
+- `agent_graph.py`: The LangGraph workflow definition (Transform -> Retrieve -> Answer).
+- `vector_engine.py`: Handles LlamaParse ingestion, ChromaDB storage, and Reranking logic.
+- `config.py`: Central configuration for API keys, model names, and chunking settings.
+- `requirements.txt`: Python dependencies.
+
+---
+
+## ▶️ How to Run
+
+Follow these steps to set up the environment and run the application.
+
+### **1. Clone the Repository**
+```bash
+git clone https://github.com/rak-esh/AgenticRAG.git
+cd AgenticRAG
+
+## Setup
+```bash
+uv venv
+.venv/bin/activate 
+uv pip install -r requirements.txt
+```
+## Environment variables
+Create a .env file and provide the following:
+```bash
+LLAMA_PARSE_API_KEY=<>
+GOOGLE_API_KEY=<>
+```
+## Entrypoint
+```bash
+streamlit run app.py
+```
+
