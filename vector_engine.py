@@ -49,8 +49,8 @@ class VectorEngine:
             api_key=config.LLAMA_CLOUD_API_KEY,
             result_type="json", 
             verbose=True,
-            parse_mode="parse_page_with_lvm", # Vision mode for images/charts
-            model="openai-gpt-4o-mini",       # Model to use for parsing
+            parse_mode="parse_page_with_lvm",
+            model="openai-gpt-4o-mini",       
             adaptive_long_table=True,
             outlined_table_extraction=True,
             output_tables_as_HTML=True,
@@ -104,24 +104,6 @@ class VectorEngine:
                                 except:
                                     # Fallback if pandas fails
                                     full_document_markdown += f"\n\n{item.get('md', '')}\n\n"
-
-                        # --- B. IMAGES (Summarize using Gemini) ---
-                        # LlamaParse puts image descriptions in 'md' if LVM is on, 
-                        # but if we get raw image bytes (rare in JSON mode without requests), 
-                        # we would process them here. 
-                        # Typically 'parse_page_with_lvm' puts the description in the 'md' field directly.
-                        # However, if we want to be explicit:
-                        elif item_type == "image":
-                            # If LlamaParse provides a description:
-                            if "md" in item:
-                                full_document_markdown += f"\n\n[IMAGE DESCRIPTION]: {item['md']}\n\n"
-                            
-                            # NOTE: If you want to send actual image bytes to Gemini, 
-                            # you need to enable image extraction in LlamaParse options 
-                            # and handle the base64 string here. 
-                            # For now, we rely on LlamaParse's own vision model description.
-
-                        # --- C. TEXT ---
                         else:
                             md_content = item.get("md", "")
                             full_document_markdown += md_content + "\n"
