@@ -52,7 +52,7 @@ uv pip install -r requirements.txt
 ## Environment variables
 Create a .env file and provide the following:
 ```bash
-LLAMA_PARSE_API_KEY=<>
+LLAMA_CLOUD_API_KEY=<>
 GOOGLE_API_KEY=<>
 ```
 ## Entrypoint
