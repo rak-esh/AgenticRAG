@@ -7,7 +7,7 @@ import config
 # We import vector_engine from agent_graph so we share the SAME instance
 from agent_graph import app_graph, vector_engine
 
-st.set_page_config(page_title="PDF Assistant", layout="wide")
+st.set_page_config(page_title="Agentic RAG Assistant", layout="wide")
 
 st.markdown("""
     <style>
@@ -36,6 +36,8 @@ def main():
         uploaded_files = st.file_uploader("Upload PDFs", type=['pdf'], accept_multiple_files=True)
         if uploaded_files and st.button("Process Files"):
             bar = st.progress(0)
+            start_time = time.time() # <--- Start Timer
+            
             for i, file in enumerate(uploaded_files):
                 path = os.path.join(config.PDF_FOLDER, file.name)
                 with open(path, "wb") as f: f.write(file.getvalue())
@@ -44,7 +46,8 @@ def main():
                 vector_engine.process_and_store_pdf(path, file.name)
                 bar.progress((i + 1) / len(uploaded_files))
             
-            st.success("Processing Complete!")
+            end_time = time.time() # <--- End Timer
+            st.success(f"Processing Complete in {end_time - start_time:.2f}s!")
             time.sleep(1)
             st.rerun()
 
@@ -59,6 +62,7 @@ def main():
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
                 if "sources" in msg: st.caption(f"Sources: {msg['sources']}")
+                if "time" in msg: st.caption(f"⏱️ {msg['time']}s") # <--- Display stored time
 
         if prompt := st.chat_input("Ask a question..."):
             st.session_state.messages.append({"role": "user", "content": prompt})
@@ -66,22 +70,31 @@ def main():
 
             with st.chat_message("assistant"):
                 with st.spinner("Thinking..."):
+                    start_ts = time.time() # <--- Start Timer
+                    
                     result = app_graph.invoke({
                         "question": prompt,
                         "file_filter": selected_file,
                         "mode": "qa",
-                        "summary_type": "", # Placeholder
+                        "summary_type": "", 
                         "context": [], "answer": "", "source_docs": []
                     })
                     
+                    end_ts = time.time() # <--- End Timer
+                    elapsed = round(end_ts - start_ts, 2)
+
                     response = result["answer"]
                     sources = result.get("source_docs", [])
                     
                     st.markdown(response)
                     if sources: st.caption(f"Sources: {', '.join(sources)}")
+                    st.caption(f"⏱️ Response generated in {elapsed} seconds") # <--- Display Time
                     
                     st.session_state.messages.append({
-                        "role": "assistant", "content": response, "sources": str(sources)
+                        "role": "assistant", 
+                        "content": response, 
+                        "sources": str(sources),
+                        "time": elapsed # <--- Save to history
                     })
 
     # --- SUMMARY ---
@@ -93,12 +106,19 @@ def main():
             
             if st.button("Summarize"):
                 with st.spinner("Summarizing..."):
+                    start_ts = time.time() # <--- Start Timer
+                    
                     res = app_graph.invoke({
                         "question": "", "file_filter": target, 
                         "mode": "summarize", "summary_type": sType,
                         "context": [], "answer": "", "source_docs": []
                     })
+                    
+                    end_ts = time.time() # <--- End Timer
+                    elapsed = round(end_ts - start_ts, 2)
+                    
                     st.info(res["answer"])
+                    st.success(f"✅ Summary generated in {elapsed} seconds") # <--- Display Time
 
 if __name__ == "__main__":
     main()

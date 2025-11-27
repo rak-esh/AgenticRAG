@@ -22,7 +22,7 @@ EMBEDDING_MODEL_NAME = "models/gemini-embedding-001"
 LLM_MODEL_NAME = "gemini-2.0-flash"  # Updated to latest flash model for speed
 
 # --- Retrieval Configs ---
-INITIAL_RETRIEVAL_K = 15
+INITIAL_RETRIEVAL_K = 10
 
 # Chunking Configs
 CHUNK_CONFIGS = {

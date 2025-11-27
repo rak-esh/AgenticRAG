@@ -5,6 +5,7 @@ import pandas as pd
 import json
 from typing import List, Dict
 import chromadb
+from concurrent.futures import ThreadPoolExecutor # <--- Added for Parallelization
 import config
 
 # --- IMPORTS ---
@@ -36,7 +37,7 @@ class VectorEngine:
             google_api_key=config.GOOGLE_API_KEY
         )
 
-        # 2. Multimodal LLM (Gemini 1.5 Flash is Vision-capable)
+        # 2. Multimodal LLM (Gemini 1.5/2.0 Flash is Vision-capable)
         self.llm = ChatGoogleGenerativeAI(
             model=config.LLM_MODEL_NAME,
             google_api_key=config.GOOGLE_API_KEY,
@@ -44,7 +45,6 @@ class VectorEngine:
         )
         
         # 3. Initialize LlamaParse
-        # We use the settings from your parser.py to enable Vision/LVM
         self.parser = LlamaParse(
             api_key=config.LLAMA_CLOUD_API_KEY,
             result_type="json", 
@@ -69,17 +69,16 @@ class VectorEngine:
             logger.warning(f"No content extracted from {filename}")
             return False
 
+        # 1. Store Vectors for Q&A (ChromaDB)
         self._chunk_and_store(text, filename, config.CHUNK_CONFIGS["qa"], "qa_chunks")
-        # self._chunk_and_store(text, filename, config.CHUNK_CONFIGS["summary"], "summary_chunks")
 
+        # 2. Store Full Text for Summarization (Local Markdown File)
+        # This skips embedding costs for the summary track
         md_path = os.path.join(config.PDF_FOLDER, f"{filename}.md")
-        
         with open(md_path, "w", encoding="utf-8") as f:
             f.write(text)
         
         logger.info(f"Saved full markdown for summarization to {md_path}")
-
-        
         return True
 
     def _extract_content_with_multimodal(self, file_path: str) -> str:
@@ -146,20 +145,37 @@ class VectorEngine:
         logger.info(f"Stored {len(chunks)} chunks in {collection_name} for {filename}")
 
     def retrieve_refined(self, original_query: str, generated_queries: List[str], k: int = 5, file_filter: str = None) -> List[Dict]:
-        # ... (Keep your existing retrieval logic)
+        """
+        PARALLELIZED RETRIEVAL
+        Fires 4 embedding + search calls simultaneously using ThreadPoolExecutor.
+        """
         collection = self._get_collection("qa_chunks")
         all_queries = [original_query] + generated_queries
         initial_k = config.INITIAL_RETRIEVAL_K
         where_clause = {"source": file_filter} if file_filter and file_filter != "All PDFs" else None
         unique_docs = {} 
 
-        for q in all_queries:
-            query_embedding = self.embedding_model.embed_query(q)
+        # --- Helper for Parallel Execution ---
+        def search_single_query(query_text):
+            # 1. Network Call (Embed)
+            query_embedding = self.embedding_model.embed_query(query_text)
+            # 2. DB Call (Search)
             results = collection.query(
                 query_embeddings=[query_embedding],
                 n_results=initial_k,
                 where=where_clause
             )
+            return results
+
+        # --- Execute in Parallel ---
+        # We use max_workers=5 to safely cover our ~4 queries
+        print(f"--- PARALLEL SEARCHING FOR {len(all_queries)} QUERIES ---")
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            # .map() maintains the order of results corresponding to all_queries
+            results_list = list(executor.map(search_single_query, all_queries))
+
+        # --- Aggregation & Deduplication ---
+        for results in results_list:
             if results['documents']:
                 for i, doc_content in enumerate(results['documents'][0]):
                     if doc_content not in unique_docs:
@@ -174,7 +190,6 @@ class VectorEngine:
         return self._rerank_with_gemini(original_query, candidates, k)
 
     def _rerank_with_gemini(self, query: str, docs: List[Dict], k: int) -> List[Dict]:
-        # ... (Keep your existing reranker logic)
         doc_text = ""
         for i, doc in enumerate(docs):
             doc_text += f"[{i}] {doc['content']}\n\n"
@@ -183,11 +198,15 @@ class VectorEngine:
         try:
             response = self.llm.invoke([HumanMessage(content=prompt)])
             content = response.content.strip()
+            # Robust parsing of LLM output "1, 3, 5"
             top_indices = [int(idx.strip()) for idx in content.split(',') if idx.strip().isdigit()]
             final_results = []
+            
             for idx in top_indices:
                 if 0 <= idx < len(docs):
                     final_results.append(docs[idx])
+            
+            # Backfill if LLM is too strict
             if len(final_results) < k:
                 seen_contents = set(d['content'] for d in final_results)
                 for doc in docs:
@@ -195,26 +214,22 @@ class VectorEngine:
                     if doc['content'] not in seen_contents: final_results.append(doc)
             return final_results
         except Exception:
+            # Fallback to vector ranking if LLM fails
             return docs[:k]
 
-    # def get_all_summary_chunks(self, filename: str) -> str:
-    #     collection = self._get_collection("summary_chunks")
-    #     results = collection.get(where={"source": filename})
-    #     if results and results['documents']:
-    #         return "\n\n".join(results['documents'])
-    #     return ""
-
     def get_all_summary_chunks(self, filename: str) -> str:
-            # Update retrieval to look for .md files
-            md_path = os.path.join(config.PDF_FOLDER, f"{filename}.md")
-            
-            if os.path.exists(md_path):
-                with open(md_path, "r", encoding="utf-8") as f:
-                    return f.read()
-            else:
-                logger.warning(f"Summary text file not found for {filename}")
-                return ""
-
+        """
+        Reads the full Markdown content directly from the local file.
+        This is zero-latency and cost-free compared to vector retrieval.
+        """
+        md_path = os.path.join(config.PDF_FOLDER, f"{filename}.md")
+        
+        if os.path.exists(md_path):
+            with open(md_path, "r", encoding="utf-8") as f:
+                return f.read()
+        else:
+            logger.warning(f"Summary markdown file not found for {filename}")
+            return ""
 
     def get_existing_files(self) -> List[str]:
         return [f for f in os.listdir(config.PDF_FOLDER) if f.endswith('.pdf')]
